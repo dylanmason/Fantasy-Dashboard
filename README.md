@@ -20,7 +20,7 @@ A way to analyze players for fantasy football on more than just PPG. This dashbo
 In order to run this locally, you'll first need to pull this repo down to your local machine by running:
 
 ```bash
-git clone <github-url>
+git clone https://github.com/dylanmason/Fantasy-Dashboard.git
 ```
 
 After which you'll need to cd into the cloned repo and from the base directory run:
