@@ -1,46 +1,88 @@
-# Getting Started with Create React App
+# Fantasy Dashboard
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+## Preface
 
-## Available Scripts
+This application uses stat weights in `utils/index.ts` that are based on **<u>my</u>** opinion of statistical importance, please feel free to update these values to your liking.
 
-In the project directory, you can run:
+## Overview
 
-### `npm start`
+A way to analyze players for fantasy football on more than just PPG. This dashboard includes (statistically opinionated) player rankings, grades, charts, and team situation overviews pertaining to a player.
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+## Usage
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+### Required dependencies to run:
 
-### `npm test`
+1) Git
+2) Node
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+### Spinning up the application
 
-### `npm run build`
+In order to run this locally, you'll first need to pull this repo down to your local machine by running:
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+```bash
+git clone <github-url>
+```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+After which you'll need to cd into the cloned repo and from the base directory run:
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+```bash
+npm install
+```
 
-### `npm run eject`
+Once the `node_modules` are installed, you'll need to reach out to me for my params in the `.env` which are related to the API fetches (or you can update the source code to pull from your choice of API and parse the fields). Finally, you can run:
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+```bash
+npm run start
+```
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+and your machine will spin up the React application and host it on `localhost:3000`.
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+## Application areas
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+### Player Profile
 
-## Learn More
+In the top section on the left side, the `Player Profile` will show you a player's gamelogs, overall grade for their position, and rankings.
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+### Player Graphs
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+In the second section on the left side, this features the following:
+
+#### Player Stat Graph
+
+The `Player Stat Graph` will show you a visualized representation of their stats each week in different categories and areas. 
+
+#### Player Ranking Graph
+
+The `Player Ranking Graph` shows you throughout the course of a season a player's weekly ranking/stock.
+
+### Player Stat Chart
+
+In the third section on the left side, the `Player Stat Chart` shows a visualization of where a players accumulated stats compare with their position's averages.
+
+### Team Situation Overview
+
+In the bottom section on the left side, the `Team Situation Overview` shows where a player's team ranks in the league for stats that their position depends on, as well as a grade. It also shows their share of those stats.
+
+### Player List
+
+On the right side of the application, there is a list of players with a filter above. These show the ranks of players for a selected position based on the selected sort key (top being better ranked).
+
+## Application functionality
+
+### Selecting a player from the player list
+
+You do not need to click on a player in the list to view their stats, simply hover over the player you would like to view, and the application will update to show their stats.
+
+### Light and dark mode
+
+You can toggle between light and dark mode by clicking the player profile picture in the top left of the app (yes this is a weird place to put it, however adding a switch to the UI would have looked weirder).
+
+## Player Scoring
+
+For determining rank, each player of a specific position has their accumulated stats parsed and gets a summed up score, the following fields are taken into account:
+
+| Position | Statistical Area |
+| ---------- | ---------- |
+| WR/TE | targets, receptions, receiving yards, receiving touchdowns, yards after catch |
+| RB | rushing attempts, rushing yards, fumbles, rushing touchdowns, targets, receptions, receiving yards, receiving touchdowns, yards after catch |
+| QB | passing attempts, completed passes, passing yards, passing touchdowns, interceptions, rushing attempts, rushing yards, rushing touchdowns |
