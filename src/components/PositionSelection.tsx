@@ -7,6 +7,39 @@ const sortFields = {
     'QB': ['passingYards', 'passingTouchdowns', 'passingAttempts', 'completedPasses', 'rushingYards', 'rushingTouchdowns', 'rushingAttempts'],
 }
 
+function getISOWeekNumber(date: Date) {
+  const target = new Date(date.valueOf());
+  const dayNr = (date.getDay() + 6) % 7;
+  target.setDate(target.getDate() - dayNr + 3);
+  const firstThursday = target.valueOf();
+  target.setMonth(0, 1);
+  if (target.getDay() !== 4) {
+    target.setMonth(0, 1 + ((4 - target.getDay()) + 7) % 7);
+  }
+  return 1 + Math.ceil((firstThursday - (target as unknown as number)) / 604800000);
+}
+
+console.log(getISOWeekNumber(new Date()));
+
+export function generateCurrentSeasonYear() {
+    const laborDay = new Date(new Date().getFullYear(), 8, 1);
+    let laborDayWeek = 36;
+    if (laborDay.getDay() === 2 && laborDay.getDay() === 3) {
+        laborDayWeek = 37;
+    }
+    const weekNumber = getISOWeekNumber(new Date());
+    return weekNumber >= laborDayWeek + 1 ? new Date().getFullYear() : new Date().getFullYear() - 1;
+}
+
+function generateLastDecadeYears() {
+    const currentYear = generateCurrentSeasonYear();
+    const years = [];
+    for (let i = 0; i < 10; i++) {
+        years.push(currentYear - i);
+    }
+    return years;
+}
+
 function sortByField(players: any[], field: string) {
     return players.slice().sort((a, b) => {
         let aValue, bValue;
@@ -58,6 +91,22 @@ export default function PositionSelection(props: any) {
                     <MenuItem value="pointsPerGame">Points Per Game</MenuItem>
                     {sortFields[props.position as keyof typeof sortFields].map((field: string) => (
                         <MenuItem key={field} value={field}>{field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')}</MenuItem>
+                    ))}
+                </Select>
+            </FormControl>
+            <FormControl fullWidth>
+                <InputLabel id="sort-select-label">Year</InputLabel>
+                <Select
+                    labelId="year-select-label"
+                    id="year-select"
+                    value={props.seasonYear}
+                    onChange={(e) => {
+                        props.setSeasonYear(e.target.value);
+                        console.log('Selected Year:', e.target.value);
+                    }}
+                >
+                    {generateLastDecadeYears().map((year: number) => (
+                        <MenuItem key={year} value={year}>{year}</MenuItem>
                     ))}
                 </Select>
             </FormControl>

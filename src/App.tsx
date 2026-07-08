@@ -5,6 +5,7 @@ import { Box, createTheme, Grid, Stack, ThemeProvider } from '@mui/material';
 import { fetchData, getTeamData } from './utils';
 import PlayerList from './components/PlayerList';
 import Chart from './components/Chart';
+import { generateCurrentSeasonYear } from './components/PositionSelection';
 import { 
   getAveragePassingAttempts, getAveragePassingCompletions, getAveragePassingTouchdowns, getAveragePassingYards, 
   getAverageReceivingTouchdowns, getAverageReceivingYards, getAverageReceptions, getAverageRushingAttempts, 
@@ -54,13 +55,14 @@ function App() {
   const [averagePlayerScore, setAveragePlayerScore] = useState<number>(0);
   const [position, setPosition] = useState<'WR' | 'RB' | 'QB' | 'TE'>('WR');
   const [sortBy, setSortBy] = useState<string>('rank');
+  const [seasonYear, setSeasonYear] = useState<number>(generateCurrentSeasonYear());
 
   const [maxStats, setMaxStats] = useState<StatMetrics>(initialStats);
   const [averageStats, setAverageStats] = useState<StatMetrics>(initialStats);
 
-  const [cachedAveragePlayerScore, setCachedAveragePlayerScore] = useState<Record<string, number>>({});
+  const [cachedAveragePlayerScore, setCachedAveragePlayerScore] = useState<Record<string, Record<string, number>>>({});
   const [cachedTeamData, setCachedTeamData] = useState<any>(null);
-  const [cachedPlayerData, setCachedPlayerData] = useState<Record<string, any[]>>({});
+  const [cachedPlayerData, setCachedPlayerData] = useState<Record<string, Record<string, any[]>>>({});
   
   const theme = createTheme({
     colorSchemes: {
@@ -115,26 +117,27 @@ function App() {
   };
 
   useEffect(() => {
+    console.log(`Fetching data for position: ${position}, season year: ${seasonYear}`);
     (async () => {
       let currentTeamData = cachedTeamData;
-      if (!currentTeamData) {
-        currentTeamData = await getTeamData();
+      if (!currentTeamData || !currentTeamData[seasonYear]) {
+        currentTeamData = await getTeamData(seasonYear);
         setCachedTeamData(currentTeamData);
       }
 
-      if (cachedPlayerData[position]) {
-        updateStatsFromData(cachedPlayerData[position], cachedAveragePlayerScore[position]);
+      if (cachedPlayerData[seasonYear] && cachedPlayerData[seasonYear][position]) {
+        updateStatsFromData(cachedPlayerData[seasonYear][position], cachedAveragePlayerScore[seasonYear][position]);
       } 
       else {
-        const { averagePlayerScore, playerData: data } = await fetchData(position, currentTeamData);
+        const { seasonYear: selectedSeasonYear, averagePlayerScore, playerData: data } = await fetchData(position, currentTeamData, seasonYear);
         
         updateStatsFromData(data, averagePlayerScore);
 
-        setCachedPlayerData((prev) => ({ ...prev, [position]: data }));
-        setCachedAveragePlayerScore((prev) => ({ ...prev, [position]: averagePlayerScore }));
+        setCachedPlayerData((prev) => ({ ...prev, [selectedSeasonYear]: { ...prev[selectedSeasonYear], [position]: data } }));
+        setCachedAveragePlayerScore((prev) => ({ ...prev, [selectedSeasonYear]: { ...prev[selectedSeasonYear], [position]: averagePlayerScore } }));
       }
     })();
-  }, [position]); 
+  }, [position, seasonYear]); 
 
   return (
     <ThemeProvider theme={theme}>
@@ -188,7 +191,7 @@ function App() {
           </Grid>
           <Grid size={{ xs: 12, md: 3 }} sx={{ paddingTop: 2 }}>
             <Box>
-              <PositionSelection position={position} players={players} setPlayers={setPlayers} setPosition={setPosition} sortBy={sortBy} setSortBy={setSortBy} />
+              <PositionSelection position={position} players={players} setPlayers={setPlayers} setPosition={setPosition} sortBy={sortBy} setSortBy={setSortBy} seasonYear={seasonYear} setSeasonYear={setSeasonYear} />
               <PlayerList players={players} setSelectedPlayer={setSelectedPlayer} sortBy={sortBy} />
             </Box>
           </Grid>

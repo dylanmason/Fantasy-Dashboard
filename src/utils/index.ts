@@ -83,8 +83,8 @@ export const statPaths: Record<'WR' | 'TE' | 'RB' | 'QB', Record<string, number[
     }
 }
 
-export async function getCurrentWeek() {
-    const response = await fetch(`${process.env.REACT_APP_GAME_WEEK_DOMAIN}/${process.env.REACT_APP_YEAR}/types/${process.env.REACT_APP_SEASON_TYPE}/weeks?lang=en&region=us`)
+export async function getCurrentWeek(seasonYear: number) {
+    const response = await fetch(`${process.env.REACT_APP_GAME_WEEK_DOMAIN}/${seasonYear}/types/${process.env.REACT_APP_SEASON_TYPE}/weeks?lang=en&region=us`)
     const data = await response.json();
     return data.count;
 }
@@ -102,21 +102,23 @@ function sortDataField(field: string, data: any[]) {
  * Gets team data including passing and rushing attempts, and calculates grades and ranks.
  * @returns An array of team data mentioned in the line above
  */
-async function getTeamData() {
+async function getTeamData(seasonYear: number) {
     const teamStatsMap: Record<number | string, any> = {};
+    teamStatsMap[seasonYear] = teamStatsMap[seasonYear] || {};
 
     for (let i = 1; i < 35; i++) {
         if (i !== 31 && i !== 32) {
-            teamStatsMap[i] = null;
+            teamStatsMap[seasonYear][i] = null;
         }
     }
 
     const fetchTeamStatsMap = Object.keys(teamStatsMap).map(async (teamId) => {
-        const teamStatsFetch = await fetch(`${process.env.REACT_APP_TEAM_DATA_DOMAIN}/${teamId}/${process.env.REACT_APP_TEAM_STATS_PATH}&season=${process.env.REACT_APP_YEAR}&seasontype=${process.env.REACT_APP_SEASON_TYPE}`);
+        console.log(`${process.env.REACT_APP_TEAM_DATA_DOMAIN}/${teamId}/${process.env.REACT_APP_TEAM_STATS_PATH}&season=${seasonYear}&seasontype=${process.env.REACT_APP_SEASON_TYPE}`);
+        const teamStatsFetch = await fetch(`${process.env.REACT_APP_TEAM_DATA_DOMAIN}/${teamId}/${process.env.REACT_APP_TEAM_STATS_PATH}&season=${seasonYear}&seasontype=${process.env.REACT_APP_SEASON_TYPE}`);
         const teamStats = await teamStatsFetch.json();
-        const teamScheduleFetch = await fetch(`${process.env.REACT_APP_TEAM_DATA_DOMAIN}/${teamId}/${process.env.REACT_APP_TEAM_SCHEDULE_PATH}&season=${process.env.REACT_APP_YEAR}&seasontype=${process.env.REACT_APP_SEASON_TYPE}`);
+        const teamScheduleFetch = await fetch(`${process.env.REACT_APP_TEAM_DATA_DOMAIN}/${teamId}/${process.env.REACT_APP_TEAM_SCHEDULE_PATH}&season=${seasonYear}&seasontype=${process.env.REACT_APP_SEASON_TYPE}`);
         const teamSchedule = await teamScheduleFetch.json();
-        teamStatsMap[parseInt(teamId)] = {
+        teamStatsMap[seasonYear][parseInt(teamId)] = {
             passingAttempts: teamStats.results.stats.categories[0].stats[7].value,
             rushingAttempts: teamStats.results.stats.categories[1].stats[0].value,
             schedule: teamSchedule
@@ -125,22 +127,22 @@ async function getTeamData() {
 
     await Promise.all(fetchTeamStatsMap);
 
-    const maxPassingAttempts = Math.max(...Object.values(teamStatsMap).map((team: any) => parseInt(team.passingAttempts)));
-    const maxRushingAttempts = Math.max(...Object.values(teamStatsMap).map((team: any) => parseInt(team.rushingAttempts)));
+    const maxPassingAttempts = Math.max(...Object.values(teamStatsMap[seasonYear]).map((team: any) => parseInt(team.passingAttempts)));
+    const maxRushingAttempts = Math.max(...Object.values(teamStatsMap[seasonYear]).map((team: any) => parseInt(team.rushingAttempts)));
 
-    teamStatsMap["maxPassingAttempts"] = maxPassingAttempts;
-    teamStatsMap["maxRushingAttempts"] = maxRushingAttempts;
+    teamStatsMap[seasonYear]["maxPassingAttempts"] = maxPassingAttempts;
+    teamStatsMap[seasonYear]["maxRushingAttempts"] = maxRushingAttempts;
 
-    const sortedPassingAttempts = sortDataField('passingAttempts', Object.values(teamStatsMap).filter((team: any) => team !== null));
-    const sortedRushingAttempts = sortDataField('rushingAttempts', Object.values(teamStatsMap).filter((team: any) => team !== null));
+    const sortedPassingAttempts = sortDataField('passingAttempts', Object.values(teamStatsMap[seasonYear]).filter((team: any) => team !== null));
+    const sortedRushingAttempts = sortDataField('rushingAttempts', Object.values(teamStatsMap[seasonYear]).filter((team: any) => team !== null));
 
-    Object.keys(teamStatsMap).forEach((teamId) => {
+    Object.keys(teamStatsMap[seasonYear]).forEach((teamId) => {
         if (teamId !== "maxPassingAttempts" && teamId !== "maxRushingAttempts") {
-            const team = teamStatsMap[teamId];
-            teamStatsMap[teamId].passingAttemptsGrade = (team.passingAttempts / teamStatsMap["maxPassingAttempts"] * 100) || 0;
-            teamStatsMap[teamId].rushingAttemptsGrade = (team.rushingAttempts / teamStatsMap["maxRushingAttempts"] * 100) || 0;
-            teamStatsMap[teamId].passingAttemptsRank = sortedPassingAttempts.find((team: any) => team.passingAttempts === teamStatsMap[teamId].passingAttempts)?.rank || 0;
-            teamStatsMap[teamId].rushingAttemptsRank = sortedRushingAttempts.find((team: any) => team.rushingAttempts === teamStatsMap[teamId].rushingAttempts)?.rank || 0;
+            const team = teamStatsMap[seasonYear][teamId];
+            teamStatsMap[seasonYear][teamId].passingAttemptsGrade = (team.passingAttempts / teamStatsMap[seasonYear]["maxPassingAttempts"] * 100) || 0;
+            teamStatsMap[seasonYear][teamId].rushingAttemptsGrade = (team.rushingAttempts / teamStatsMap[seasonYear]["maxRushingAttempts"] * 100) || 0;
+            teamStatsMap[seasonYear][teamId].passingAttemptsRank = sortedPassingAttempts.find((team: any) => team.passingAttempts === teamStatsMap[seasonYear][teamId].passingAttempts)?.rank || 0;
+            teamStatsMap[seasonYear][teamId].rushingAttemptsRank = sortedRushingAttempts.find((team: any) => team.rushingAttempts === teamStatsMap[seasonYear][teamId].rushingAttempts)?.rank || 0;
         }
 
     });
@@ -184,11 +186,11 @@ function calculateAverages(averages: Record<string, number>, positionWeights: Re
  * @param playerGamelogs Array of all players' stats for each game they participated in
  * @returns Gamelogs for each player
  */
-async function getGameLogs(positionData: any, allTeamData: any, playerGamesPlayed: any, playerGamelogs: any) {
+async function getGameLogs(positionData: any, allTeamData: any, playerGamesPlayed: any, playerGamelogs: any, seasonYear: number) {
     const gameLogMap = positionData.map(async (element: any) => {
         const [gamelog, getGamesPlayed] = await Promise.all([
-            fetch(`${process.env.REACT_APP_PLAYER_GAMELOG_DOMAIN}/${element.athlete.id}/${process.env.REACT_APP_PLAYER_GAMELOG_PATH}&season=${process.env.REACT_APP_YEAR}&seasontype=${process.env.REACT_APP_SEASON_TYPE}`),
-            fetch(`${process.env.REACT_APP_PLAYER_GAMES_PLAYED_DOMAIN}/${process.env.REACT_APP_YEAR}/athletes/${element.athlete.id}/${process.env.REACT_APP_PLAYER_GAMES_PLAYED_PATH}&seasonType=${process.env.REACT_APP_SEASON_TYPE}&season=${process.env.REACT_APP_YEAR}`)
+            fetch(`${process.env.REACT_APP_PLAYER_GAMELOG_DOMAIN}/${element.athlete.id}/${process.env.REACT_APP_PLAYER_GAMELOG_PATH}&season=${seasonYear}&seasontype=${process.env.REACT_APP_SEASON_TYPE}`),
+            fetch(`${process.env.REACT_APP_PLAYER_GAMES_PLAYED_DOMAIN}/${seasonYear}/athletes/${element.athlete.id}/${process.env.REACT_APP_PLAYER_GAMES_PLAYED_PATH}&seasonType=${process.env.REACT_APP_SEASON_TYPE}&season=${seasonYear}`)
         ]);
         const jsonLog = await gamelog.json();
         const gamesPlayed = await getGamesPlayed.json();
@@ -247,14 +249,15 @@ function createResults(positionData: any, weeklyRankings: Record<number, any[]>,
  * @param existingTeamData Optional existing team data to use instead of fetching new data
  * @returns Processed player data for the specified position
  */
-async function fetchData(position: 'WR' | 'TE' | 'RB' | 'QB' = 'WR', existingTeamData: any = null) {
-    const apiFetch = await fetch(`${process.env.REACT_APP_POSITION_DATA_DOMAIN}&limit=${position === 'QB' ? 25 : 100}&category=offense${positionKey[position]}&season=${process.env.REACT_APP_YEAR}&seasontype=${process.env.REACT_APP_SEASON_TYPE}&po`);
+async function fetchData(position: 'WR' | 'TE' | 'RB' | 'QB' = 'WR', existingTeamData: any = null, seasonYear: number) {
+    const apiFetch = await fetch(`${process.env.REACT_APP_POSITION_DATA_DOMAIN}&limit=${position === 'QB' ? 25 : 100}&category=offense${positionKey[position]}&season=${seasonYear}&seasontype=${process.env.REACT_APP_SEASON_TYPE}&po`);
 
     const allData = await apiFetch.json();
-    const currentWeek = await getCurrentWeek();
+    console.log(`Fetched data for position: ${position}, season year: ${seasonYear}`, allData);
+    const currentWeek = await getCurrentWeek(seasonYear);
     const playerData = allData.athletes;
 
-    const allTeamData = existingTeamData || await getTeamData();
+    const allTeamData = existingTeamData || await getTeamData(seasonYear);
 
     const positionWeights = weights[position];
     const positionPaths = statPaths[position];
@@ -268,7 +271,7 @@ async function fetchData(position: 'WR' | 'TE' | 'RB' | 'QB' = 'WR', existingTea
     const playerGamesPlayed: any = {};
     const playerGamelogs: any = {};
 
-    const allPlayerGamelogs = await getGameLogs(positionData, allTeamData, playerGamesPlayed, playerGamelogs);
+    const allPlayerGamelogs = await getGameLogs(positionData, allTeamData, playerGamesPlayed, playerGamelogs, seasonYear);
 
     const weeklyRankings = rankPlayersByWeek(allPlayerGamelogs, positionWeights, currentWeek);
 
@@ -280,7 +283,7 @@ async function fetchData(position: 'WR' | 'TE' | 'RB' | 'QB' = 'WR', existingTea
         element.rank = index + 1;
     });
 
-    return { averagePlayerScore, playerData: filteredResults };
+    return { seasonYear, averagePlayerScore, playerData: filteredResults };
 }
 
 /**
