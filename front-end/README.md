@@ -86,3 +86,33 @@ For determining rank, each player of a specific position has their accumulated s
 | WR/TE | targets, receptions, receiving yards, receiving touchdowns, yards after catch |
 | RB | rushing attempts, rushing yards, fumbles, rushing touchdowns, targets, receptions, receiving yards, receiving touchdowns, yards after catch |
 | QB | passing attempts, completed passes, passing yards, passing touchdowns, interceptions, rushing attempts, rushing yards, rushing touchdowns |
+
+## ESPN Fantasy Plugin
+
+Optionally, you can enable roster data from your fantasy league to show which team players are on. To do so, you will have to do the following:
+
+1. Create a `.env` file in the `/fantasy-data` directory that has the following env vars:
+    - `SWID`
+    - `ESPN_S2`
+    - `FANTASY_URL`
+    - `FANTASY_LEAGUE_ID`
+    - `FANTASY_PATH`
+
+    NOTE: The `SWID` and `ESPN_S2` values are cookies from your browser session of logging into fantasy and are needed in order to pull the data from your league, to obtain them you'll have to login to your fantasy league, open developer tools (`F12` or just right click and select `Inspect`), go to the `Network` tab, and find a `json` type response which has the cookies in the `Cookies` tab. **These two cookies expire after a few hours, so you will need to refresh these entries**.
+
+2. Run the script inside `/fantasy-data` to generate output files of your league data throughout the years:
+
+    ```bash
+    # From root directory of repository, go into the fantasy-data directory
+    cd ./fantasy-data
+
+    # Make sure all necessary dependencies are installed
+    npm install
+
+    # Run the script
+    npm run dev
+    ```
+
+    NOTE: There will be an error at the bottom of the log outputs referencing a 404 even on successful runs, this is expected as it queries your league data until it runs into a year in which the league didn't exist.
+
+After running these steps, output of your league data is stored in `front-end/public/leagueData`. The only thing left to do in enable it by selecting the switch in the position selector and you will see players highlighted in the player list which are already on a team in your league. You don't need to run the above commands every time you want to see your league data as the data comes from the outputted files, **but the data in the files can become stale after awhile, it is recommended that you run these commands once a week to stay up to date during the season**.

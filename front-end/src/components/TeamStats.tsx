@@ -53,6 +53,9 @@ export default function TeamStats(props: any) {
     useEffect(() => {
         if (!props?.selectedPlayer) return;
         setOverviewFields(createOverviewFields(props.selectedPlayer));
+        if (props.selectedPlayer?.displayName === 'Davante Adams') {
+            console.log(props.selectedPlayer);
+        }
     }, [props.selectedPlayer])
     return (
         <Paper elevation={3} sx={{ padding: 2, margin: 2, width: '90%', borderRadius: 3, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
@@ -70,7 +73,7 @@ export default function TeamStats(props: any) {
                                     rankKey = replaceStr.charAt(0).toLowerCase() + replaceStr.slice(1);
                                     fontSize = 14;
                                 }
-                                const value = Object.values(item)[0] as number;
+                                const value = Object.values(item)[0] as number || 0;
                                 const rank = label.includes('Grade') && rankKey ? props.selectedPlayer.situationGrades[rankKey] : null;
                                 return (
                                     <Stack key={label} direction="column" spacing={1} alignItems="center" justifyContent="center">

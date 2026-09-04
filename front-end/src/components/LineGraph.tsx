@@ -6,6 +6,7 @@ export default function LineGraph(props: any) {
     return (
         <>
             <LineChart
+                sx={{ height: 250 }}
                 series={currentCategoryFields}
                 grid={{ vertical: true, horizontal: true }}
                 xAxis={[

@@ -27,7 +27,7 @@ export default function PlayerRankingGraph(props: any) {
         <>
             <LineChart
                 series={series}
-                sx={{ '& .MuiAreaElement-root': { opacity: 0.25 } }}
+                sx={{ '& .MuiAreaElement-root': { opacity: 0.25 }, height: 250 }}
                 grid={{ vertical: true, horizontal: true }}
                 yAxis={[{ 
                     reverse: true,

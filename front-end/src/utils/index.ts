@@ -1,5 +1,7 @@
 import { parseGamelog } from "./parseGameLog";
 
+const leagueDataPath = '/leagueData';
+
 const positionKey: Record<string, string> = {
     'WR': process.env.REACT_APP_WIDE_RECEIVER_QUERY as string,
     'TE': process.env.REACT_APP_TIGHT_END_QUERY as string,
@@ -103,22 +105,21 @@ function sortDataField(field: string, data: any[]) {
  * @returns An array of team data mentioned in the line above
  */
 async function getTeamData(seasonYear: number) {
+    console.log(`Fetching team data for season year: ${seasonYear}`);
     const teamStatsMap: Record<number | string, any> = {};
-    teamStatsMap[seasonYear] = teamStatsMap[seasonYear] || {};
 
     for (let i = 1; i < 35; i++) {
         if (i !== 31 && i !== 32) {
-            teamStatsMap[seasonYear][i] = null;
+            teamStatsMap[i] = null;
         }
     }
 
     const fetchTeamStatsMap = Object.keys(teamStatsMap).map(async (teamId) => {
-        console.log(`${process.env.REACT_APP_TEAM_DATA_DOMAIN}/${teamId}/${process.env.REACT_APP_TEAM_STATS_PATH}&season=${seasonYear}&seasontype=${process.env.REACT_APP_SEASON_TYPE}`);
         const teamStatsFetch = await fetch(`${process.env.REACT_APP_TEAM_DATA_DOMAIN}/${teamId}/${process.env.REACT_APP_TEAM_STATS_PATH}&season=${seasonYear}&seasontype=${process.env.REACT_APP_SEASON_TYPE}`);
         const teamStats = await teamStatsFetch.json();
         const teamScheduleFetch = await fetch(`${process.env.REACT_APP_TEAM_DATA_DOMAIN}/${teamId}/${process.env.REACT_APP_TEAM_SCHEDULE_PATH}&season=${seasonYear}&seasontype=${process.env.REACT_APP_SEASON_TYPE}`);
         const teamSchedule = await teamScheduleFetch.json();
-        teamStatsMap[seasonYear][parseInt(teamId)] = {
+        teamStatsMap[parseInt(teamId)] = {
             passingAttempts: teamStats.results.stats.categories[0].stats[7].value,
             rushingAttempts: teamStats.results.stats.categories[1].stats[0].value,
             schedule: teamSchedule
@@ -127,22 +128,22 @@ async function getTeamData(seasonYear: number) {
 
     await Promise.all(fetchTeamStatsMap);
 
-    const maxPassingAttempts = Math.max(...Object.values(teamStatsMap[seasonYear]).map((team: any) => parseInt(team.passingAttempts)));
-    const maxRushingAttempts = Math.max(...Object.values(teamStatsMap[seasonYear]).map((team: any) => parseInt(team.rushingAttempts)));
+    const maxPassingAttempts = Math.max(...Object.values(teamStatsMap).map((team: any) => parseInt(team.passingAttempts)));
+    const maxRushingAttempts = Math.max(...Object.values(teamStatsMap).map((team: any) => parseInt(team.rushingAttempts)));
 
-    teamStatsMap[seasonYear]["maxPassingAttempts"] = maxPassingAttempts;
-    teamStatsMap[seasonYear]["maxRushingAttempts"] = maxRushingAttempts;
+    teamStatsMap["maxPassingAttempts"] = maxPassingAttempts;
+    teamStatsMap["maxRushingAttempts"] = maxRushingAttempts;
 
-    const sortedPassingAttempts = sortDataField('passingAttempts', Object.values(teamStatsMap[seasonYear]).filter((team: any) => team !== null));
-    const sortedRushingAttempts = sortDataField('rushingAttempts', Object.values(teamStatsMap[seasonYear]).filter((team: any) => team !== null));
+    const sortedPassingAttempts = sortDataField('passingAttempts', Object.values(teamStatsMap).filter((team: any) => team !== null));
+    const sortedRushingAttempts = sortDataField('rushingAttempts', Object.values(teamStatsMap).filter((team: any) => team !== null));
 
-    Object.keys(teamStatsMap[seasonYear]).forEach((teamId) => {
+    Object.keys(teamStatsMap).forEach((teamId) => {
         if (teamId !== "maxPassingAttempts" && teamId !== "maxRushingAttempts") {
-            const team = teamStatsMap[seasonYear][teamId];
-            teamStatsMap[seasonYear][teamId].passingAttemptsGrade = (team.passingAttempts / teamStatsMap[seasonYear]["maxPassingAttempts"] * 100) || 0;
-            teamStatsMap[seasonYear][teamId].rushingAttemptsGrade = (team.rushingAttempts / teamStatsMap[seasonYear]["maxRushingAttempts"] * 100) || 0;
-            teamStatsMap[seasonYear][teamId].passingAttemptsRank = sortedPassingAttempts.find((team: any) => team.passingAttempts === teamStatsMap[seasonYear][teamId].passingAttempts)?.rank || 0;
-            teamStatsMap[seasonYear][teamId].rushingAttemptsRank = sortedRushingAttempts.find((team: any) => team.rushingAttempts === teamStatsMap[seasonYear][teamId].rushingAttempts)?.rank || 0;
+            const team = teamStatsMap[teamId];
+            teamStatsMap[teamId].passingAttemptsGrade = (team.passingAttempts / teamStatsMap["maxPassingAttempts"] * 100) || 0;
+            teamStatsMap[teamId].rushingAttemptsGrade = (team.rushingAttempts / teamStatsMap["maxRushingAttempts"] * 100) || 0;
+            teamStatsMap[teamId].passingAttemptsRank = sortedPassingAttempts.find((team: any) => team.passingAttempts === teamStatsMap[teamId].passingAttempts)?.rank || 0;
+            teamStatsMap[teamId].rushingAttemptsRank = sortedRushingAttempts.find((team: any) => team.rushingAttempts === teamStatsMap[teamId].rushingAttempts)?.rank || 0;
         }
 
     });
@@ -195,6 +196,11 @@ async function getGameLogs(positionData: any, allTeamData: any, playerGamesPlaye
         const jsonLog = await gamelog.json();
         const gamesPlayed = await getGamesPlayed.json();
 
+        if (!gamesPlayed.events) {
+            console.warn(`No games played data for ${element.athlete.displayName}: ${JSON.stringify(gamesPlayed.events)} Skipping this player.`);
+            return { id: element.athlete.id, name: element.athlete.displayName, gamelog: [], schedule: allTeamData[element.athlete.teamId].schedule, gamesPlayed: [] };
+        }
+
         const gamesPlayedWithBye = gamesPlayed.events.items.map((game: any) => { return { played: game.played, bye: false } });
         
         if (allTeamData[element.athlete.teamId].schedule.byeWeek <= gamesPlayedWithBye.length - 1) {
@@ -239,7 +245,11 @@ function createResults(positionData: any, weeklyRankings: Record<number, any[]>,
             situationGrades['rushingAttempts'] = allTeamData[element.athlete.teamId]?.rushingAttempts;
             situationGrades['rushingAttemptsRank'] = allTeamData[element.athlete.teamId]?.rushingAttemptsRank;
         }
-        return { ...element, score: score.toFixed(2), gamelog: playerGamelogs[element.athlete.displayName].gamelog, statsByGame: playerGamelogs[element.athlete.displayName].stats, combinedStats: { ...Object.keys(playerGamelogs[element.athlete.displayName].stats).reduce((acc: any, key: string) => ({ ...acc, [key]: playerGamelogs[element.athlete.displayName].stats[key].filter((element: any) => typeof element === 'number').reduce((a: number, b: number) => a + b, 0) }), {}), pointsPerGame: (score / (playerGamesPlayed[element.athlete.displayName].filter((game: any) => game.played).length)).toFixed(2), yardsAfterCatch: element.categories[3].totals[10] }, schedule: allPlayerGamelogs.find((player: any) => player.id === element.athlete.id)?.schedule, gamesPlayed: playerGamesPlayed[element.athlete.displayName], situationGrades, weeklyRankings: Object.keys(weeklyRankings).map((weekNumber: any) => weeklyRankings[weekNumber].find((player: any) => player.id === element.athlete.id)) };
+        if (!playerGamelogs[element.athlete.displayName]) {
+            console.warn(`No gamelog data for ${element.athlete.displayName}. Skipping this player.`);
+            return { ...element, score, gamelog: [], statsByGame: {}, combinedStats: {}, schedule: allTeamData[element.athlete.teamId].schedule, gamesPlayed: [], situationGrades: {}, weeklyRankings: [] };
+        }
+        return { ...element, score: score.toFixed(2), gamelog: playerGamelogs[element.athlete.displayName].gamelog || [], statsByGame: playerGamelogs[element.athlete.displayName].stats, combinedStats: { ...Object.keys(playerGamelogs[element.athlete.displayName].stats).reduce((acc: any, key: string) => ({ ...acc, [key]: playerGamelogs[element.athlete.displayName].stats[key].filter((element: any) => typeof element === 'number').reduce((a: number, b: number) => a + b, 0) }), {}), pointsPerGame: (score / (playerGamesPlayed[element.athlete.displayName].filter((game: any) => game.played).length)).toFixed(2), yardsAfterCatch: element.categories[3].totals[10] }, schedule: allPlayerGamelogs.find((player: any) => player.id === element.athlete.id)?.schedule, gamesPlayed: playerGamesPlayed[element.athlete.displayName], situationGrades, weeklyRankings: Object.keys(weeklyRankings).map((weekNumber: any) => weeklyRankings[weekNumber].find((player: any) => player.id === element.athlete.id)) };
     });
 }
 
@@ -253,7 +263,6 @@ async function fetchData(position: 'WR' | 'TE' | 'RB' | 'QB' = 'WR', existingTea
     const apiFetch = await fetch(`${process.env.REACT_APP_POSITION_DATA_DOMAIN}&limit=${position === 'QB' ? 25 : 100}&category=offense${positionKey[position]}&season=${seasonYear}&seasontype=${process.env.REACT_APP_SEASON_TYPE}&po`);
 
     const allData = await apiFetch.json();
-    console.log(`Fetched data for position: ${position}, season year: ${seasonYear}`, allData);
     const currentWeek = await getCurrentWeek(seasonYear);
     const playerData = allData.athletes;
 
@@ -281,6 +290,7 @@ async function fetchData(position: 'WR' | 'TE' | 'RB' | 'QB' = 'WR', existingTea
 
     filteredResults.sort((a: any, b: any) => b.score - a.score).forEach((element: any, index: number) => {
         element.rank = index + 1;
+        element.combinedStats.stockRise = getRankingDifference(element.rank || 0, element.weeklyRankings || []).stockRise;
     });
 
     return { seasonYear, averagePlayerScore, playerData: filteredResults };
@@ -352,22 +362,65 @@ function rankPlayersByWeek(gamelogs: any[], positionWeights: any, currentWeek: n
  * Gets the difference in rankings between the current and previous week.
  * @param currentRanking The current ranking of the player
  * @param weeklyRankings Array of weekly rankings for the player
- * @returns An object containing the current and previous rankings
+ * @returns An object containing the current and previous rankings, as well as the stock rise (difference) between them
  */
 function getRankingDifference(currentRanking: number, weeklyRankings: any[]) {
-    if (weeklyRankings.length < 2) return { currentRanking, previousRanking: currentRanking };
+    if (weeklyRankings.length < 2) return { currentRanking, previousRanking: currentRanking, stockRise: 0 };
 
-    if (weeklyRankings[weeklyRankings.length - 2] && weeklyRankings[weeklyRankings.length - 2].weekRank !== undefined) return { currentRanking, previousRanking: weeklyRankings[weeklyRankings.length - 2].weekRank };
+    let previousRanking = 0;
+    for (let i = 0; i < weeklyRankings.length - 1; i++) {
+        if (weeklyRankings[i] && weeklyRankings[i].weekRank !== undefined) {
+            previousRanking = weeklyRankings[i].weekRank;
+        }
+    }
+    const stockRise = previousRanking ? previousRanking - currentRanking : 0;
+    return { currentRanking, previousRanking, stockRise };
+}
 
-    else {
-        let previousRanking = 0;
-        for (let i = 0; i < weeklyRankings.length - 1; i++) {
-            if (weeklyRankings[i] && weeklyRankings[i].weekRank !== undefined) {
-                previousRanking = weeklyRankings[i].weekRank;
+async function readLeagueDataForYear(seasonYear: number, leagueId: number): Promise<any> {
+    console.log(`Reading league data for year ${seasonYear} and league ID ${leagueId} at path: ${leagueDataPath}/${leagueId}/${seasonYear}.json `);
+    return await fetch(`${leagueDataPath}/${leagueId}/${seasonYear}.json`).then(res => res.json());
+}
+
+async function fetchLeagueIds(): Promise<number[]> {
+    return await fetch(`${leagueDataPath}/leagueIds.json`).then(res => res.json());
+}
+
+export async function getLeaguesInfo(): Promise<Record<string, any>[]> {
+    const leagueNames = [];
+    const leagueIds = await fetchLeagueIds();
+    for (const leagueId of leagueIds) {
+        const leagueData = await fetch(`${leagueDataPath}/${leagueId}/leagueInfo.json`).then(res => res.json());
+        leagueNames.push({ leagueName: leagueData.leagueName, id: leagueId });
+    }
+    return leagueNames;
+}
+
+async function buildLeagueDataForYear(seasonYear: number, leagueId: number): Promise<any> {
+    try {
+        const builtData: Record<number | 'attempted', any> = { attempted: false };
+        const leagueData = await readLeagueDataForYear(seasonYear, leagueId);
+        console.log(`Successfully read league data for year ${seasonYear}:`, leagueData);
+        const teams = leagueData.teams;
+
+        for (const team of teams) {
+            for (const player of team.roster.entries) {
+                builtData[player.playerId as number] = {
+                    id: player.playerId,
+                    fantasyTeamId: team.id,
+                    teamLogo: team.logo,
+                    teamName: team.name
+                };
             }
         }
-        return { currentRanking, previousRanking };
+
+        builtData['attempted'] = true;
+
+        return builtData;
+    } catch (err) {
+        console.error(`Error reading league data for year ${seasonYear}:`, err);
+        return { attempted: true };
     }
 }
 
-export { fetchData, getRankingDifference, getTeamData };
+export { fetchData, getRankingDifference, getTeamData, buildLeagueDataForYear };

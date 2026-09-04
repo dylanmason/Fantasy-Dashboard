@@ -1,10 +1,11 @@
-import { Box, FormControl, InputLabel, MenuItem, Paper, Select, Stack } from "@mui/material";
+import { useEffect, useState } from "react";
+import { Box, FormControl, InputLabel, MenuItem, Paper, Select, Stack, Switch, Typography } from "@mui/material";
 
 const sortFields = {
-    'WR': ['receptions', 'receivingYards', 'receivingTouchdowns', 'targets', 'yardsAfterCatch'],
-    'TE': ['receptions', 'receivingYards', 'receivingTouchdowns', 'targets', 'yardsAfterCatch'],
-    'RB': ['rushingYards', 'rushingTouchdowns', 'rushingAttempts', 'receptions', 'receivingYards', 'receivingTouchdowns', 'targets', 'yardsAfterCatch'],
-    'QB': ['passingYards', 'passingTouchdowns', 'passingAttempts', 'completedPasses', 'rushingYards', 'rushingTouchdowns', 'rushingAttempts'],
+    'WR': ['receptions', 'receivingYards', 'receivingTouchdowns', 'targets', 'yardsAfterCatch', 'stockRise'],
+    'TE': ['receptions', 'receivingYards', 'receivingTouchdowns', 'targets', 'yardsAfterCatch', 'stockRise'],
+    'RB': ['rushingYards', 'rushingTouchdowns', 'rushingAttempts', 'receptions', 'receivingYards', 'receivingTouchdowns', 'targets', 'yardsAfterCatch', 'stockRise'],
+    'QB': ['passingYards', 'passingTouchdowns', 'passingAttempts', 'completedPasses', 'rushingYards', 'rushingTouchdowns', 'rushingAttempts', 'stockRise'],
 }
 
 function getISOWeekNumber(date: Date) {
@@ -31,13 +32,24 @@ export function generateCurrentSeasonYear() {
     return weekNumber >= laborDayWeek + 1 ? new Date().getFullYear() : new Date().getFullYear() - 1;
 }
 
-function generateLastDecadeYears() {
-    const currentYear = generateCurrentSeasonYear();
+function generateLastDecadeYears(retrieveFantasyData: boolean = false) {
+    let currentYear = generateCurrentSeasonYear();
+    if (retrieveFantasyData) {
+        currentYear = generateCurrentFantasySeasonYear();
+    }
     const years = [];
     for (let i = 0; i < 10; i++) {
         years.push(currentYear - i);
     }
     return years;
+}
+
+export function generateCurrentFantasySeasonYear(): number {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+
+    return currentMonth >= 7 ? currentYear : currentYear - 1;
 }
 
 function sortByField(players: any[], field: string) {
@@ -57,6 +69,15 @@ function sortByField(players: any[], field: string) {
 }
 
 export default function PositionSelection(props: any) {
+    const [lastDecadeYears, setLastDecadeYears] = useState<number[]>(generateLastDecadeYears(props.retrieveFantasyData));
+    useEffect(() => {
+        setLastDecadeYears(generateLastDecadeYears(props.retrieveFantasyData));
+        if (!props.retrieveFantasyData) {
+            props.setSeasonYear(generateCurrentSeasonYear());
+        } else {
+            props.setSeasonYear(generateCurrentFantasySeasonYear());
+        }
+    }, [props.retrieveFantasyData]);
     return (
         <Paper sx={{ width: '80%', borderRadius: 3, padding: 2, margin: 2 }}>
             <Stack spacing={2} justifyContent="space-between">
@@ -95,20 +116,48 @@ export default function PositionSelection(props: any) {
                 </Select>
             </FormControl>
             <FormControl fullWidth>
-                <InputLabel id="sort-select-label">Year</InputLabel>
+                <InputLabel id="year-select-label">Year</InputLabel>
                 <Select
                     labelId="year-select-label"
                     id="year-select"
                     value={props.seasonYear}
                     onChange={(e) => {
                         props.setSeasonYear(e.target.value);
-                        console.log('Selected Year:', e.target.value);
                     }}
                 >
-                    {generateLastDecadeYears().map((year: number) => (
+                    {lastDecadeYears.map((year: number) => (
                         <MenuItem key={year} value={year}>{year}</MenuItem>
                     ))}
                 </Select>
+            </FormControl>
+            { props.retrieveFantasyData ? (
+            <FormControl fullWidth>
+                <InputLabel id="league-select-label">Fantasy League</InputLabel>
+                <Select
+                    labelId="league-select-label"
+                    id="league-select"
+                    value={props.selectedFantasyLeague?.id ?? ''}
+                    onChange={(e) => {
+                        const selectedLeague = props.fantasyLeagues.find((league: any) => league.id === Number(e.target.value));
+                        props.setSelectedFantasyLeague(selectedLeague);
+                    }}
+                >
+                    {props.fantasyLeagues.map((league: { id: number; leagueName: string; }) => (
+                        <MenuItem key={league.id} value={league.id}>{league.leagueName}</MenuItem>
+                    ))}
+                </Select>
+            </FormControl>
+            ) : ( <></> ) }
+            <FormControl fullWidth>
+                <Stack direction='row' spacing={2} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography sx={{ fontSize: 16, fontWeight: 'bold' }}>Retrieve Fantasy Data</Typography>
+                <Box>
+                <Switch
+                    checked={props.retrieveFantasyData}
+                    onChange={(e) => props.setRetrieveFantasyData(e.target.checked)}
+                />
+                </Box>
+                </Stack>
             </FormControl>
             </Stack>
         </Paper>
